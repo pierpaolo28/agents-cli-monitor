@@ -149,44 +149,46 @@ uv run python scripts/view_results.py gs://bucket/agents_cli_mentions.md --limit
 
 ## Deploy to production
 
-The project is configured for Cloud Run deployment with daily scheduled runs.
+The project uses Cloud Run Jobs for scheduled batch monitoring.
 
 ```bash
-# 1. Enable required APIs
-gcloud services enable run.googleapis.com cloudscheduler.googleapis.com
+# 1. Set your Google Cloud project
+export GOOGLE_CLOUD_PROJECT=your-project-id
 
-# 2. Create GCS bucket for tracking file
-export PROJECT_ID=your-project-id
-gsutil mb -p ${PROJECT_ID} -l us-central1 gs://agents-cli-monitor-${PROJECT_ID}
-
-# 3. Update .deploy.yaml with your bucket path
-#    Set TRACKING_FILE_PATH: gs://agents-cli-monitor-${PROJECT_ID}/agents_cli_mentions.md
-
-# 4. Deploy to Cloud Run
-agents-cli deploy
+# 2. Run the deployment script
+./deploy_job.sh
 ```
 
 This will:
-- Build and deploy the agent to Cloud Run (us-central1)
+- Create a GCS bucket for storing tracking results
+- Build and deploy the monitoring sweep as a Cloud Run Job
 - Create a Cloud Scheduler job that runs daily at 9:07 AM Pacific
-- Set up environment variables from `.deploy.yaml`
-- Configure the service with 512Mi memory and 540s timeout
+- Grant necessary permissions automatically
+- Configure 512Mi memory and 9-minute timeout
 
 ### Manual trigger
 
 Trigger a sweep manually:
 
 ```bash
-./scripts/trigger_sweep.sh
+# Via Cloud Scheduler (recommended)
+gcloud scheduler jobs run agents-cli-monitor-daily --location=us-central1
 
-# Or via Cloud Scheduler
-gcloud scheduler jobs run agents-cli-monitor-scheduler --location=us-central1
+# Or execute the job directly
+gcloud run jobs execute agents-cli-monitor --region=us-central1
 ```
 
-### View logs
+### View job status
 
 ```bash
-gcloud run services logs read agents-cli-monitor --region=us-central1 --limit=50
+# List recent executions
+gcloud run jobs executions list --job=agents-cli-monitor --region=us-central1
+
+# View logs
+gcloud logging read "resource.type=cloud_run_job AND resource.labels.job_name=agents-cli-monitor" --limit=50
+
+# View tracking file
+gsutil cat gs://agents-cli-monitor-${GOOGLE_CLOUD_PROJECT}/agents_cli_mentions.md
 ```
 
 See [`deployment/README.md`](deployment/README.md) for detailed deployment guide.
