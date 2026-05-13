@@ -1,0 +1,32 @@
+# Deployment configuration for Agents CLI monitoring agent
+deploy_target: dev
+
+targets:
+  dev:
+    # Deploy to Cloud Run
+    platform: cloud_run
+
+    # Cloud Run configuration
+    cloud_run:
+      region: us-central1
+      memory: 512Mi
+      cpu: "1"
+      timeout: 540  # 9 minutes (max for Cloud Run)
+      max_instances: 1
+      min_instances: 0
+
+    # Environment variables
+    env:
+      GOOGLE_CLOUD_LOCATION: us-central1
+      TRACKING_FILE_PATH: gs://agents-cli-monitor-${GOOGLE_CLOUD_PROJECT}/agents_cli_mentions.md
+
+    # Cloud Scheduler for daily runs
+    scheduler:
+      enabled: true
+      schedule: "7 9 * * *"  # 9:07 AM daily (avoid :00 and :30)
+      timezone: America/Los_Angeles
+      description: "Daily Agents CLI monitoring sweep"
+      payload: |
+        {
+          "message": "Run a comprehensive monitoring sweep for Agents CLI mentions. Search across all platforms, validate results, and save to the tracking file."
+        }
